@@ -76,6 +76,20 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
+    app.get("/users/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+
+      if (req.decoded._id !== id)
+        return res
+          .status(403)
+          .send({ error: true, message: "Forbidden access!" });
+
+      const query = { _id: id };
+      const result = await users.findOne(query);
+
+      res.send(result);
+    });
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { _id: user._id };
