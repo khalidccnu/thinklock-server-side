@@ -76,6 +76,14 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.post("/users", async (req, res) => {
+      const user = req.body;
+      const query = { _id: user._id };
+      const exist = await users.findOne(query);
+
+      if (exist) {
+        return res.send({ error: true, message: "User already exist!" });
+      }
+
       const result = await users.insertOne(req.body);
 
       res.send(result);
