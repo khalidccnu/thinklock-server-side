@@ -104,6 +104,26 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
+    app.get(
+      "/:instructor/courses",
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const id = req.params.instructor;
+
+        if (req.decoded._id !== id)
+          return res
+            .status(403)
+            .send({ error: true, message: "Forbidden access!" });
+
+        const query = { instructor_id: id };
+        const cursor = courses.find(query);
+        const result = await cursor.toArray();
+
+        res.send(result);
+      }
+    );
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { _id: user._id };
