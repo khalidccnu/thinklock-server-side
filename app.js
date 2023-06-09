@@ -104,6 +104,17 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
+    app.get("/courses", async (req, res) => {
+      const options = {
+        projection: { name: 1, seat: 1, price: 1, image: 1 },
+      };
+
+      const cursor = courses.find({}, options);
+      const result = await cursor.toArray();
+
+      res.send(result);
+    });
+
     app.get(
       "/:instructor/courses",
       verifyJWT,
