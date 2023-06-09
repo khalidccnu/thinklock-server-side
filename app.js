@@ -55,12 +55,26 @@ const verifyJWT = (req, res, next) => {
 (async (_) => {
   try {
     const users = mdbClient.db("thinklock").collection("users");
+    const courses = mdbClient.db("thinklock").collection("courses");
 
     const verifyAdmin = async (req, res, next) => {
       const query = { _id: req.decoded._id };
       const result = await users.findOne(query);
 
       if (result.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "Forbidden access!" });
+      }
+
+      next();
+    };
+
+    const verifyInstructor = async (req, res, next) => {
+      const query = { _id: req.decoded._id };
+      const result = await users.findOne(query);
+
+      if (result.role !== "instructor") {
         return res
           .status(403)
           .send({ error: true, message: "Forbidden access!" });
@@ -95,11 +109,16 @@ const verifyJWT = (req, res, next) => {
       const query = { _id: user._id };
       const exist = await users.findOne(query);
 
-      if (exist) {
+      if (exist)
         return res.send({ error: true, message: "User already exist!" });
-      }
 
-      const result = await users.insertOne(req.body);
+      const result = await users.insertOne(user);
+
+      res.send(result);
+    });
+
+    app.post("/new-course", verifyJWT, verifyInstructor, async (req, res) => {
+      const result = await courses.insertOne(req.body);
 
       res.send(result);
     });
