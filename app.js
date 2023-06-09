@@ -104,6 +104,18 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
+    app.get("/instructors", async (req, res) => {
+      const options = {
+        projection: { email: 1, name: 1, photo: 1 },
+      };
+
+      const query = { role: "instructor" };
+      const cursor = users.find(query, options);
+      const result = await cursor.toArray();
+
+      res.send(result);
+    });
+
     app.get("/courses", async (req, res) => {
       const options = {
         projection: { name: 1, seat: 1, price: 1, image: 1 },
