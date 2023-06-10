@@ -246,6 +246,21 @@ const verifyJWT = (req, res, next) => {
       }
     );
 
+    app.get("/:student/orders", verifyJWT, verifyStudent, async (req, res) => {
+      const id = req.params.student;
+
+      if (req.decoded._id !== id)
+        return res
+          .status(403)
+          .send({ error: true, message: "Forbidden access!" });
+
+      const query = { ct_key: id };
+      const cursor = orders.find(query).sort({ date: -1 });
+      const result = await cursor.toArray();
+
+      res.send(result);
+    });
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { _id: user._id };
