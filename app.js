@@ -56,6 +56,7 @@ const verifyJWT = (req, res, next) => {
   try {
     const users = mdbClient.db("thinklock").collection("users");
     const courses = mdbClient.db("thinklock").collection("courses");
+    const bookedCourses = mdbClient.db("thinklock").collection("bookedCourses");
 
     const verifyAdmin = async (req, res, next) => {
       const query = { _id: req.decoded._id };
@@ -75,6 +76,19 @@ const verifyJWT = (req, res, next) => {
       const result = await users.findOne(query);
 
       if (result.role !== "instructor") {
+        return res
+          .status(403)
+          .send({ error: true, message: "Forbidden access!" });
+      }
+
+      next();
+    };
+
+    const verifyStudent = async (req, res, next) => {
+      const query = { _id: req.decoded._id };
+      const result = await users.findOne(query);
+
+      if (result.role !== "student") {
         return res
           .status(403)
           .send({ error: true, message: "Forbidden access!" });
@@ -174,6 +188,25 @@ const verifyJWT = (req, res, next) => {
       }
     );
 
+    app.get(
+      "/:student/booked-courses",
+      verifyJWT,
+      verifyStudent,
+      async (req, res) => {
+        const id = req.params.student;
+
+        if (req.decoded._id !== id)
+          return res
+            .status(403)
+            .send({ error: true, message: "Forbidden access!" });
+
+        const query = { student_id: id };
+        const result = await bookedCourses.findOne(query);
+
+        res.send(result);
+      }
+    );
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { _id: user._id };
@@ -204,6 +237,30 @@ const verifyJWT = (req, res, next) => {
 
       res.send(result);
     });
+
+    app.put(
+      "/:student/booked-courses",
+      verifyJWT,
+      verifyStudent,
+      async (req, res) => {
+        const id = req.params.student;
+
+        if (req.decoded._id !== id)
+          return res
+            .status(403)
+            .send({ error: true, message: "Forbidden access!" });
+
+        const options = { upsert: true };
+        const query = { student_id: id };
+        const result = await bookedCourses.updateOne(
+          query,
+          { $set: req.body },
+          options
+        );
+
+        res.send(result);
+      }
+    );
 
     mdbClient
       .db("admin")
