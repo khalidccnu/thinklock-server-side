@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const imageKit = require("imagekit");
 const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
@@ -116,12 +116,32 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
+    app.get(
+      "/admin/instructors/:id",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const query = { _id: req.params.id, role: "instructor" };
+        const result = await users.findOne(query);
+
+        res.send(result);
+      }
+    );
+
     app.get("/courses", async (req, res) => {
       const options = {
-        projection: { name: 1, seat: 1, price: 1, image: 1 },
+        projection: { instructor_id: 1, name: 1, seat: 1, price: 1, image: 1 },
       };
 
-      const cursor = courses.find({}, options);
+      const query = { status: "approved" };
+      const cursor = courses.find(query, options);
+      const result = await cursor.toArray();
+
+      res.send(result);
+    });
+
+    app.get("/admin/courses", verifyJWT, verifyAdmin, async (req, res) => {
+      const cursor = courses.find();
       const result = await cursor.toArray();
 
       res.send(result);
@@ -162,6 +182,18 @@ const verifyJWT = (req, res, next) => {
 
     app.post("/new-course", verifyJWT, verifyInstructor, async (req, res) => {
       const result = await courses.insertOne(req.body);
+
+      res.send(result);
+    });
+
+    app.put("/admin/courses/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const options = { upsert: true };
+      const query = { _id: new ObjectId(req.params.id) };
+      const result = await courses.updateOne(
+        query,
+        { $set: req.body },
+        options
+      );
 
       res.send(result);
     });
