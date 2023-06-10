@@ -104,6 +104,13 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
+    app.put("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const query = { _id: req.params.id };
+      const result = await users.updateOne(query, { $set: req.body });
+
+      res.send(result);
+    });
+
     app.get("/instructors", async (req, res) => {
       const options = {
         projection: { email: 1, name: 1, photo: 1 },
