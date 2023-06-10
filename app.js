@@ -4,6 +4,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const imageKit = require("imagekit");
 const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SK);
 const morgan = require("morgan");
 
 const app = express();
@@ -57,6 +58,7 @@ const verifyJWT = (req, res, next) => {
     const users = mdbClient.db("thinklock").collection("users");
     const courses = mdbClient.db("thinklock").collection("courses");
     const bookedCourses = mdbClient.db("thinklock").collection("bookedCourses");
+    const orders = mdbClient.db("thinklock").collection("orders");
 
     const verifyAdmin = async (req, res, next) => {
       const query = { _id: req.decoded._id };
@@ -207,6 +209,43 @@ const verifyJWT = (req, res, next) => {
       }
     );
 
+    app.get(
+      "/:student/booked-courses/paid-balance",
+      verifyJWT,
+      verifyStudent,
+      async (req, res) => {
+        const id = req.params.student;
+
+        if (req.decoded._id !== id)
+          return res
+            .status(403)
+            .send({ error: true, message: "Forbidden access!" });
+
+        let paidBalance;
+        const bcResult = await bookedCourses.findOne({ student_id: id });
+
+        if (bcResult) {
+          const ids = bcResult.courses.map((id) => new ObjectId(id));
+          const options = {
+            projection: { price: 1 },
+          };
+
+          const query = { _id: { $in: ids } };
+          const cursor = courses.find(query, options);
+          const result = await cursor.toArray();
+
+          paidBalance = result.reduce(
+            (total, current) => total + current.price,
+            0
+          );
+        } else {
+          paidBalance = 0;
+        }
+
+        res.send({ paidBalance: Math.ceil(paidBalance) });
+      }
+    );
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { _id: user._id };
@@ -222,6 +261,65 @@ const verifyJWT = (req, res, next) => {
 
     app.post("/new-course", verifyJWT, verifyInstructor, async (req, res) => {
       const result = await courses.insertOne(req.body);
+
+      res.send(result);
+    });
+
+    app.post(
+      "/:student/booked-courses",
+      verifyJWT,
+      verifyStudent,
+      async (req, res) => {
+        if (Array.isArray(req.body)) {
+          const ids = req.body.map((id) => new ObjectId(id));
+          const options = {
+            projection: {
+              instructor_id: 1,
+              name: 1,
+              seat: 1,
+              price: 1,
+              image: 1,
+            },
+          };
+
+          const query = { _id: { $in: ids } };
+          const cursor = courses.find(query, options);
+          const result = await cursor.toArray();
+
+          res.send(result);
+        } else {
+          res.send([]);
+        }
+      }
+    );
+
+    app.post(
+      "/create-payment-intent",
+      verifyJWT,
+      verifyStudent,
+      async (req, res) => {
+        const amount = req.body.paidBalance * 100;
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.send(paymentIntent.client_secret);
+      }
+    );
+
+    app.post("/:student/orders", verifyJWT, verifyStudent, async (req, res) => {
+      const query = { student_id: req.params.student };
+      const bcResult = await bookedCourses.findOne(query);
+
+      const order = {
+        ...req.body,
+        courses: bcResult.courses,
+      };
+
+      const result = await orders.insertOne(order);
 
       res.send(result);
     });
@@ -257,6 +355,18 @@ const verifyJWT = (req, res, next) => {
           { $set: req.body },
           options
         );
+
+        res.send(result);
+      }
+    );
+
+    app.delete(
+      "/:student/booked-courses",
+      verifyJWT,
+      verifyStudent,
+      async (req, res) => {
+        const query = { student_id: req.params.student };
+        const result = await bookedCourses.deleteOne(query);
 
         res.send(result);
       }
