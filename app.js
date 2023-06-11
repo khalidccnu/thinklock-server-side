@@ -139,6 +139,17 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
+    app.get("/instructors/:id", async (req, res) => {
+      const options = {
+        projection: { email: 1, name: 1, photo: 1 },
+      };
+
+      const query = { _id: req.params.id, role: "instructor" };
+      const result = await users.findOne(query, options);
+
+      res.send(result);
+    });
+
     app.get(
       "/admin/instructors/:id",
       verifyJWT,
