@@ -99,6 +99,15 @@ const verifyJWT = (req, res, next) => {
       next();
     };
 
+    const verifySelf = async (req, res, next) => {
+      if (req.decoded._id !== req.params.identifier)
+        return res
+          .status(403)
+          .send({ error: true, message: "Forbidden access!" });
+
+      next();
+    };
+
     app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
       const cursor = users.find();
       const result = await cursor.toArray();
@@ -106,15 +115,8 @@ const verifyJWT = (req, res, next) => {
       res.send(result);
     });
 
-    app.get("/users/:id", verifyJWT, async (req, res) => {
-      const id = req.params.id;
-
-      if (req.decoded._id !== id)
-        return res
-          .status(403)
-          .send({ error: true, message: "Forbidden access!" });
-
-      const query = { _id: id };
+    app.get("/users/:identifier", verifyJWT, verifySelf, async (req, res) => {
+      const query = { _id: req.params.identifier };
       const result = await users.findOne(query);
 
       res.send(result);
@@ -164,7 +166,14 @@ const verifyJWT = (req, res, next) => {
 
     app.get("/courses", async (req, res) => {
       const options = {
-        projection: { instructor_id: 1, name: 1, seat: 1, price: 1, image: 1 },
+        projection: {
+          instructor_id: 1,
+          name: 1,
+          seat: 1,
+          purchase: 1,
+          price: 1,
+          image: 1,
+        },
       };
 
       const query = { status: "approved" };
@@ -182,18 +191,12 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.get(
-      "/:instructor/courses",
+      "/:identifier/courses",
       verifyJWT,
       verifyInstructor,
+      verifySelf,
       async (req, res) => {
-        const id = req.params.instructor;
-
-        if (req.decoded._id !== id)
-          return res
-            .status(403)
-            .send({ error: true, message: "Forbidden access!" });
-
-        const query = { instructor_id: id };
+        const query = { instructor_id: req.params.identifier };
         const cursor = courses.find(query);
         const result = await cursor.toArray();
 
@@ -202,18 +205,12 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.get(
-      "/:student/booked-courses",
+      "/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
+      verifySelf,
       async (req, res) => {
-        const id = req.params.student;
-
-        if (req.decoded._id !== id)
-          return res
-            .status(403)
-            .send({ error: true, message: "Forbidden access!" });
-
-        const query = { student_id: id };
+        const query = { student_id: req.params.identifier };
         const result = await bookedCourses.findOne(query);
 
         res.send(result);
@@ -221,19 +218,15 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.get(
-      "/:student/booked-courses/paid-balance",
+      "/:identifier/booked-courses/paid-balance",
       verifyJWT,
       verifyStudent,
+      verifySelf,
       async (req, res) => {
-        const id = req.params.student;
-
-        if (req.decoded._id !== id)
-          return res
-            .status(403)
-            .send({ error: true, message: "Forbidden access!" });
-
         let paidBalance;
-        const bcResult = await bookedCourses.findOne({ student_id: id });
+        const bcResult = await bookedCourses.findOne({
+          student_id: req.params.identifier,
+        });
 
         if (bcResult) {
           const ids = bcResult.courses.map((id) => new ObjectId(id));
@@ -257,20 +250,19 @@ const verifyJWT = (req, res, next) => {
       }
     );
 
-    app.get("/:student/orders", verifyJWT, verifyStudent, async (req, res) => {
-      const id = req.params.student;
+    app.get(
+      "/:identifier/orders",
+      verifyJWT,
+      verifyStudent,
+      verifySelf,
+      async (req, res) => {
+        const query = { ct_key: req.params.identifier };
+        const cursor = orders.find(query).sort({ date: -1 });
+        const result = await cursor.toArray();
 
-      if (req.decoded._id !== id)
-        return res
-          .status(403)
-          .send({ error: true, message: "Forbidden access!" });
-
-      const query = { ct_key: id };
-      const cursor = orders.find(query).sort({ date: -1 });
-      const result = await cursor.toArray();
-
-      res.send(result);
-    });
+        res.send(result);
+      }
+    );
 
     app.post("/users", async (req, res) => {
       const user = req.body;
@@ -292,9 +284,10 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.post(
-      "/:student/booked-courses",
+      "/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
+      verifySelf,
       async (req, res) => {
         if (Array.isArray(req.body)) {
           const ids = req.body.map((id) => new ObjectId(id));
@@ -303,6 +296,36 @@ const verifyJWT = (req, res, next) => {
               instructor_id: 1,
               name: 1,
               seat: 1,
+              price: 1,
+              image: 1,
+            },
+          };
+
+          const query = { _id: { $in: ids } };
+          const cursor = courses.find(query, options);
+          const result = await cursor.toArray();
+
+          res.send(result);
+        } else {
+          res.send([]);
+        }
+      }
+    );
+
+    app.post(
+      "/:identifier/enrolled-courses",
+      verifyJWT,
+      verifyStudent,
+      verifySelf,
+      async (req, res) => {
+        if (Array.isArray(req.body)) {
+          const ids = req.body.map((id) => new ObjectId(id));
+          const options = {
+            projection: {
+              instructor_id: 1,
+              name: 1,
+              seat: 1,
+              purchase: 1,
               price: 1,
               image: 1,
             },
@@ -336,19 +359,48 @@ const verifyJWT = (req, res, next) => {
       }
     );
 
-    app.post("/:student/orders", verifyJWT, verifyStudent, async (req, res) => {
-      const query = { student_id: req.params.student };
-      const bcResult = await bookedCourses.findOne(query);
+    app.post(
+      "/:identifier/orders",
+      verifyJWT,
+      verifyStudent,
+      verifySelf,
+      async (req, res) => {
+        const query = { student_id: req.params.identifier };
+        const bcResult = await bookedCourses.findOne(query);
 
-      const order = {
-        ...req.body,
-        courses: bcResult.courses,
-      };
+        const order = {
+          ...req.body,
+          courses: bcResult.courses,
+        };
 
-      const result = await orders.insertOne(order);
+        const result = await orders.insertOne(order);
 
-      res.send(result);
-    });
+        res.send(result);
+      }
+    );
+
+    app.put(
+      "/:identifier/courses",
+      verifyJWT,
+      verifyStudent,
+      verifySelf,
+      async (req, res) => {
+        const ids = req.body.map((id) => new ObjectId(id));
+
+        const csQuery = { _id: { $in: ids } };
+        const usQuery = { _id: req.params.identifier };
+
+        await courses.updateMany(csQuery, { $inc: { purchase: 1 } });
+        await users.updateOne(usQuery, {
+          $pull: { courses: { $in: req.body } },
+        });
+        await users.updateOne(usQuery, {
+          $push: { courses: { $each: req.body } },
+        });
+
+        res.status(200).send({ success: true, message: "OK!" });
+      }
+    );
 
     app.put("/admin/courses/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const options = { upsert: true };
@@ -363,19 +415,13 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.put(
-      "/:student/booked-courses",
+      "/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
+      verifySelf,
       async (req, res) => {
-        const id = req.params.student;
-
-        if (req.decoded._id !== id)
-          return res
-            .status(403)
-            .send({ error: true, message: "Forbidden access!" });
-
         const options = { upsert: true };
-        const query = { student_id: id };
+        const query = { student_id: req.params.identifier };
         const result = await bookedCourses.updateOne(
           query,
           { $set: req.body },
@@ -387,11 +433,12 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.delete(
-      "/:student/booked-courses",
+      "/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
+      verifySelf,
       async (req, res) => {
-        const query = { student_id: req.params.student };
+        const query = { student_id: req.params.identifier };
         const result = await bookedCourses.deleteOne(query);
 
         res.send(result);
