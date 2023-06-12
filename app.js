@@ -204,6 +204,32 @@ const verifyJWT = (req, res, next) => {
       }
     );
 
+    app.get("/courses/popular", async (req, res) => {
+      const options = {
+        projection: {
+          instructor_id: 1,
+          name: 1,
+          seat: 1,
+          purchase: 1,
+          price: 1,
+          image: 1,
+        },
+        sort: {
+          purchase: -1,
+        },
+        limit: 6,
+      };
+
+      const query = {
+        status: "approved",
+        $expr: { $ne: ["$seat", "$purchase"] },
+      };
+      const cursor = courses.find(query, options);
+      const result = await cursor.toArray();
+
+      res.send(result);
+    });
+
     app.get(
       "/:identifier/courses/:id",
       verifyJWT,
