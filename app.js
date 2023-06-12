@@ -205,6 +205,22 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.get(
+      "/:identifier/courses/:id",
+      verifyJWT,
+      verifyInstructor,
+      verifySelf,
+      async (req, res) => {
+        const query = {
+          instructor_id: req.params.identifier,
+          _id: new ObjectId(req.params.id),
+        };
+        const result = await courses.findOne(query);
+
+        res.send(result);
+      }
+    );
+
+    app.get(
       "/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
@@ -399,6 +415,24 @@ const verifyJWT = (req, res, next) => {
         });
 
         res.status(200).send({ success: true, message: "OK!" });
+      }
+    );
+
+    app.put(
+      "/:identifier/courses/:id",
+      verifyJWT,
+      verifyInstructor,
+      verifySelf,
+      async (req, res) => {
+        const query = {
+          instructor_id: req.params.identifier,
+          _id: new ObjectId(req.params.id),
+        };
+        const result = await courses.updateOne(query, {
+          $set: req.body,
+        });
+
+        res.send(result);
       }
     );
 
