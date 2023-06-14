@@ -1,0 +1,37 @@
+name: CI-SFTP
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request event but only for the main branch
+  push:
+    branches: [ main ]
+#  pull_request:
+#    branches: [ main ]
+
+  # Allows to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more job that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "SFTP"
+  deploy-via-sftp:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkouts repository under $GITHUB_WORKSPACE, so job can access it
+      - uses: actions/checkout@v2
+          
+      - name: SFTP Deploy
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.1
+        with:
+          server: ${{ secrets.SERVER }}
+          port: 22 # default is 22
+          username: ${{ secrets.USERNAME }}
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+          # Puts all file to under this path
+          local_path: ./* # default is ./*
+          # File will copy to under this path
+          remote_path: ${{ secrets.REMOTE_PATH }}
+          
+          # Arg
+          args: "-o ConnectTimeout=5"
