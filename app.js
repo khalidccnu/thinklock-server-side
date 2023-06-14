@@ -191,7 +191,7 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.get(
-      "/:identifier/courses",
+      "/instructor/:identifier/courses",
       verifyJWT,
       verifyInstructor,
       verifySelf,
@@ -231,7 +231,7 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.get(
-      "/:identifier/courses/:id",
+      "/instructor/:identifier/courses/:id",
       verifyJWT,
       verifyInstructor,
       verifySelf,
@@ -247,7 +247,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.get(
-      "/:identifier/booked-courses",
+      "/student/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -260,7 +260,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.get(
-      "/:identifier/booked-courses/paid-balance",
+      "/student/:identifier/booked-courses/paid-balance",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -293,7 +293,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.get(
-      "/:identifier/orders",
+      "/student/:identifier/orders",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -326,7 +326,7 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.post(
-      "/:identifier/booked-courses",
+      "/student/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -355,7 +355,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.post(
-      "/:identifier/enrolled-courses",
+      "/student/:identifier/enrolled-courses",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -402,7 +402,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.post(
-      "/:identifier/orders",
+      "/student/:identifier/orders",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -422,7 +422,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.put(
-      "/:identifier/courses",
+      "/student/:identifier/courses",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -445,7 +445,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.put(
-      "/:identifier/courses/:id",
+      "/instructor/:identifier/courses/:id",
       verifyJWT,
       verifyInstructor,
       verifySelf,
@@ -475,7 +475,7 @@ const verifyJWT = (req, res, next) => {
     });
 
     app.put(
-      "/:identifier/booked-courses",
+      "/student/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
       verifySelf,
@@ -493,7 +493,7 @@ const verifyJWT = (req, res, next) => {
     );
 
     app.delete(
-      "/:identifier/booked-courses",
+      "/student/:identifier/booked-courses",
       verifyJWT,
       verifyStudent,
       verifySelf,
