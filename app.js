@@ -12,7 +12,6 @@ const port = process.env.PORT || 5000;
 
 const corsOptions = {
   origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -512,7 +511,7 @@ const verifyJWT = (req, res, next) => {
   } catch (err) {
     console.log("Did not connect to MongoDB! " + err.message);
   } finally {
-    await mdbClient.close();
+    // await mdbClient.close();
   }
 })();
 
