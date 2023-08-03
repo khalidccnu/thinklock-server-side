@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const multer = require("multer");
 const imageKit = require("imagekit");
 const jwt = require("jsonwebtoken");
 const stripe = require("stripe")(process.env.STRIPE_SK);
@@ -9,6 +10,7 @@ const morgan = require("morgan");
 
 const app = express();
 const port = process.env.PORT || 5000;
+const uploadMulter = multer();
 
 const corsOptions = {
   origin: "*",
@@ -28,6 +30,36 @@ const mdbClient = new MongoClient(process.env.MONGODB_URI, {
     deprecationErrors: true,
   },
 });
+
+const imagekit = new imageKit({
+  publicKey: process.env.IK_PL_KEY,
+  privateKey: process.env.IK_PV_KEY,
+  urlEndpoint: `https://ik.imagekit.io/` + process.env.IK_ID,
+});
+
+const uploadToIK = async (req, res) => {
+  let fieldName = req.file.fieldname.replace("Img", "");
+
+  switch (fieldName) {
+    case "user":
+      fieldName = "users";
+      break;
+    case "course":
+      fieldName = "courses";
+      break;
+    default:
+      fieldName = "";
+  }
+
+  imagekit
+    .upload({
+      file: req.file.buffer,
+      fileName: req.file.originalname,
+      folder: `thinklock/${fieldName}`,
+    })
+    .then((response) => res.send(response))
+    .catch((error) => res.send(error));
+};
 
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
@@ -306,6 +338,8 @@ const verifyJWT = (req, res, next) => {
       }
     );
 
+    app.post("/users/upload-ui", uploadMulter.single("userImg"), uploadToIK);
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { _id: user._id };
@@ -318,6 +352,14 @@ const verifyJWT = (req, res, next) => {
 
       res.send(result);
     });
+
+    app.post(
+      "/new-course/upload-ci",
+      verifyJWT,
+      verifyInstructor,
+      uploadMulter.single("courseImg"),
+      uploadToIK
+    );
 
     app.post("/new-course", verifyJWT, verifyInstructor, async (req, res) => {
       const result = await courses.insertOne(req.body);
@@ -518,18 +560,6 @@ const verifyJWT = (req, res, next) => {
 
 app.get("/", (req, res) => {
   res.send("ThinkLock is running...");
-});
-
-app.get("/ik", (req, res) => {
-  const imagekit = new imageKit({
-    publicKey: process.env.IK_PL_KEY,
-    privateKey: process.env.IK_PV_KEY,
-    urlEndpoint: `https://ik.imagekit.io/` + process.env.IK_ID,
-  });
-
-  const authenticationParameters = imagekit.getAuthenticationParameters();
-
-  res.send(authenticationParameters);
 });
 
 app.post("/jwt", (req, res) => {
